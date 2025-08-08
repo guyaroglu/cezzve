@@ -22,6 +22,7 @@ const userRoutes = require('./routes/users');
 const fortuneRoutes = require('./routes/fortunes');
 const paymentRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admin');
+const configRoutes = require('./routes/config');
 
 const app = express();
 // Validate environment
@@ -156,6 +157,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/fortunes', fortuneRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/config', configRoutes);
 
 // Catch-all for undefined routes
 app.use(notFound);

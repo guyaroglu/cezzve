@@ -12,6 +12,7 @@ const {
   validatePagination
 } = require('../middleware/validation');
 const openaiService = require('../services/openaiService');
+const { aiDailyQuota, consumeAiQuota } = require('../middleware/aiQuota');
 const logger = require('../utils/logger');
 
 // @desc    Get user's fortune history
@@ -73,7 +74,7 @@ router.get('/history', protect, validatePagination, async (req, res) => {
 // @desc    Generate tarot reading
 // @route   POST /api/fortunes/tarot
 // @access  Public (with rate limiting)
-router.post('/tarot', optionalAuth, userRateLimit(10, 60000), validateTarotReading, async (req, res) => {
+router.post('/tarot', optionalAuth, userRateLimit(10, 60000), aiDailyQuota({ limit: 20 }), validateTarotReading, async (req, res) => {
   try {
     const { data } = req.body;
     const userId = req.user?.id;
@@ -95,6 +96,7 @@ router.post('/tarot', optionalAuth, userRateLimit(10, 60000), validateTarotReadi
 
     // Generate AI fortune
     const fortune = await openaiService.generateFortune('tarot', data, req.user || {});
+    await consumeAiQuota(req);
 
     // Create reading record
     const readingData = {
@@ -157,7 +159,7 @@ router.post('/tarot', optionalAuth, userRateLimit(10, 60000), validateTarotReadi
 // @desc    Generate horoscope
 // @route   POST /api/fortunes/horoscope
 // @access  Public
-router.post('/horoscope', optionalAuth, userRateLimit(20, 60000), validateHoroscopeRequest, async (req, res) => {
+router.post('/horoscope', optionalAuth, userRateLimit(20, 60000), aiDailyQuota({ limit: 20 }), validateHoroscopeRequest, async (req, res) => {
   try {
     const { data } = req.body;
     const userId = req.user?.id;
@@ -179,6 +181,7 @@ router.post('/horoscope', optionalAuth, userRateLimit(20, 60000), validateHorosc
 
     // Generate AI horoscope
     const fortune = await openaiService.generateFortune('horoscope', data, req.user || {});
+    await consumeAiQuota(req);
 
     const readingData = {
       userId: userId || null,

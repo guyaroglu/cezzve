@@ -52,3 +52,24 @@ paths:
           description: Received
         '401':
           description: Invalid signature
+  /api/config:
+    get:
+      summary: Get public runtime config
+      responses:
+        '200':
+          description: OK
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '304':
+          description: Not Modified
