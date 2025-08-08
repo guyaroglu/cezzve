@@ -243,10 +243,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install k6
 
-      - name: Run performance baseline
+      - name: Run performance baseline (load-test)
         run: |
           cd backend
           k6 run -e BASE_URL=${{ env.PERF_BASE_URL || 'http://localhost:3000' }} tests/performance/load-test.js
+
+      - name: Run performance scenarios
+        run: |
+          cd backend
+          k6 run -e BASE_URL=${{ env.PERF_BASE_URL || 'http://localhost:3000' }} tests/performance/scenarios.js
 
   # PR smoke performance test
   performance-smoke:
@@ -270,7 +275,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install k6
 
-      - name: Run performance smoke (short)
+      - name: Run performance smoke (short - load-test)
         run: |
           cd backend
           K6_DURATION=30s K6_VUS=20 node -e "
@@ -280,6 +285,11 @@ jobs:
             fs.writeFileSync('tests/performance/load-test.smoke.js', c);
           "
           k6 run -e BASE_URL=${{ env.PERF_BASE_URL || 'http://localhost:3000' }} tests/performance/load-test.smoke.js
+
+      - name: Run performance smoke (short - scenarios)
+        run: |
+          cd backend
+          k6 run -e BASE_URL=${{ env.PERF_BASE_URL || 'http://localhost:3000' }} tests/performance/scenarios.js
 
       - name: Upload k6 results
         if: always()

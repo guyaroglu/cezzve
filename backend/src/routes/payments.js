@@ -5,6 +5,23 @@ const slowDown = require('express-slow-down');
 const router = express.Router();
 const { getFirestore, Collections } = require('../config/firebase');
 const { cache, CacheKeys } = require('../config/redis');
+// @desc    Payment availability (e.g., DCB and carriers)
+// @route   GET /api/payments/availability
+// @access  Public (cacheable)
+router.get('/availability', async (req, res) => {
+  const dcbEnabled = (process.env.PAYMENTS_DCB_ENABLED || 'false').toLowerCase() === 'true';
+  const carriersCsv = process.env.PAYMENTS_CARRIERS || 'Turkcell,Vodafone,Turk Telekom';
+  const carriers = carriersCsv.split(',').map(c => c.trim()).filter(Boolean);
+
+  const payload = {
+    dcb: dcbEnabled,
+    carriers,
+  };
+
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  return res.json({ success: true, data: payload });
+});
+
 const { protect } = require('../middleware/auth');
 const { validatePayment } = require('../middleware/validation');
 const paymentService = require('../services/paymentService');
