@@ -53,6 +53,10 @@ jobs:
           npm test
         env:
           NODE_ENV: test
+      - name: Validate OpenAPI schema
+        run: |
+          npm i -g swagger-cli
+          swagger-cli validate backend/openapi.yaml
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_SECRET: test_jwt_secret

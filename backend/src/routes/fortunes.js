@@ -14,6 +14,9 @@ const {
 const openaiService = require('../services/openaiService');
 const { aiDailyQuota, consumeAiQuota } = require('../middleware/aiQuota');
 const logger = require('../utils/logger');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const { maxSizeValidator, mimeSniffValidator, clamAVScan } = require('../middleware/uploadValidation');
 
 // @desc    Get user's fortune history
 // @route   GET /api/fortunes/history
@@ -68,6 +71,18 @@ router.get('/history', protect, validatePagination, async (req, res) => {
       success: false,
       error: 'Fal geçmişi alınamadı'
     });
+  }
+});
+
+// @desc    Coffee fortune image upload + validation
+// @route   POST /api/fortunes/coffee/upload
+// @access  Private (recommended)
+router.post('/coffee/upload', protect, upload.single('image'), maxSizeValidator, mimeSniffValidator, clamAVScan, async (req, res) => {
+  try {
+    return res.status(200).json({ success: true, message: 'Görsel yüklendi ve doğrulandı' });
+  } catch (err) {
+    logger.error('Coffee upload error:', err);
+    return res.status(500).json({ error: { code: 'upload_error', message: 'Yükleme başarısız', requestId: req && req.requestId } });
   }
 });
 
