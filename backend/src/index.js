@@ -10,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 
 const logger = require('./utils/logger');
 const { parseEnv } = require('./config/env');
+const Sentry = require('@sentry/node');
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
 const { initializeFirebase } = require('./config/firebase');
@@ -37,6 +38,11 @@ async function initializeServices() {
     logger.error('Failed to initialize services:', error);
     process.exit(1);
   }
+}
+
+// Sentry init
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN, environment: env.NODE_ENV, release: process.env.RELEASE });
 }
 
 // Security middleware
@@ -103,6 +109,9 @@ app.use((req, res, next) => {
   const childLogger = logger.withRequest(req);
   req.log = childLogger;
   res.setHeader('x-request-id', req.requestId);
+  if (process.env.SENTRY_DSN) {
+    try { Sentry.setTag('request_id', req.requestId); } catch(_) {}
+  }
   next();
 });
 
@@ -125,6 +134,20 @@ app.get('/health', (req, res) => {
     version: '1.0.0',
     requestId: req.requestId,
   });
+});
+
+// Liveness & Readiness
+app.get('/healthz', (_req, res) => res.send('ok'));
+app.get('/readyz', async (_req, res) => {
+  try {
+    const { getRedisClient } = require('./config/redis');
+    const client = getRedisClient();
+    const pong = await client.ping();
+    if (pong) return res.send('ready');
+    return res.status(503).send('down');
+  } catch (e) {
+    return res.status(503).send('down');
+  }
 });
 
 // API routes

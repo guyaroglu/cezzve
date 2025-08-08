@@ -172,6 +172,21 @@ const cache = {
   }
 };
 
+// Low-level helpers for dedup use-cases
+async function setIfNotExists(key, value, expireInSeconds = 600) {
+  try {
+    const client = getRedisClient();
+    const result = await client.set(key, JSON.stringify(value), {
+      NX: true,
+      EX: expireInSeconds,
+    });
+    return result === 'OK';
+  } catch (error) {
+    logger.error('Redis setIfNotExists error:', error);
+    return false;
+  }
+}
+
 // Cache keys constants
 const CacheKeys = {
   USER_PROFILE: (userId) => `user:profile:${userId}`,
@@ -194,5 +209,6 @@ module.exports = {
   connectRedis,
   getRedisClient,
   cache,
-  CacheKeys
+  CacheKeys,
+  setIfNotExists,
 };

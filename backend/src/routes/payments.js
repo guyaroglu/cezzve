@@ -4,7 +4,8 @@ const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
 const router = express.Router();
 const { getFirestore, Collections } = require('../config/firebase');
-const { cache, CacheKeys } = require('../config/redis');
+const { cache, CacheKeys, setIfNotExists } = require('../config/redis');
+const Sentry = require('@sentry/node');
 // @desc    Payment availability (e.g., DCB and carriers)
 // @route   GET /api/payments/availability
 // @access  Public (cacheable)
@@ -526,6 +527,7 @@ router.post('/webhook/:provider', express.raw({ type: '*/*' }), async (req, res)
           eventId = event.id;
         } catch (e) {
           logger.warn('Stripe webhook verification failed:', e.message);
+          if (process.env.SENTRY_DSN) { try { Sentry.captureMessage('stripe_invalid_sig'); } catch(_) {} }
           isValid = false;
         }
         break;
@@ -544,6 +546,7 @@ router.post('/webhook/:provider', express.raw({ type: '*/*' }), async (req, res)
           eventId = headers['x-event-id'] || undefined;
         } catch (e) {
           logger.warn('Iyzico webhook verification failed:', e.message);
+          if (process.env.SENTRY_DSN) { try { Sentry.captureMessage('iyzico_invalid_sig'); } catch(_) {} }
           isValid = false;
         }
         break;
@@ -563,11 +566,11 @@ router.post('/webhook/:provider', express.raw({ type: '*/*' }), async (req, res)
 
     // Idempotency for webhooks (avoid processing duplicates)
     if (eventId) {
-      const processed = await cache.get(CacheKeys.WEBHOOK_EVENT(eventId));
-      if (processed) {
-        return res.status(200).json({ received: true, duplicate: true });
+      const key = CacheKeys.WEBHOOK_EVENT(eventId);
+      const ok = await setIfNotExists(key, true, 600); // 10 dk dedup
+      if (!ok) {
+        return res.status(200).end();
       }
-      await cache.set(CacheKeys.WEBHOOK_EVENT(eventId), true, 24 * 60 * 60);
     }
 
     // Process webhook based on event type
