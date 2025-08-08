@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: FalYolu API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/payments/availability:
+    get:
+      summary: Get payments availability
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      dcb:
+                        type: boolean
+                      carriers:
+                        type: array
+                        items:
+                          type: string
+        '429':
+          description: Too Many Requests
+        '503':
+          description: Service Unavailable
+  /api/payments/webhook/{provider}:
+    post:
+      summary: Payment webhook callback
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [stripe, iyzico, paypal]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Received
+        '401':
+          description: Invalid signature

@@ -3,13 +3,14 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
 const router = express.Router();
+const { rateLimitRedis } = require('../middleware/rateLimitRedis');
 const { getFirestore, Collections } = require('../config/firebase');
 const { cache, CacheKeys, setIfNotExists } = require('../config/redis');
 const Sentry = require('@sentry/node');
 // @desc    Payment availability (e.g., DCB and carriers)
 // @route   GET /api/payments/availability
 // @access  Public (cacheable)
-router.get('/availability', async (req, res) => {
+router.get('/availability', rateLimitRedis({ bucket: 'payments_availability', windowSec: 60, max: 60 }), async (req, res) => {
   const dcbEnabled = (process.env.PAYMENTS_DCB_ENABLED || 'false').toLowerCase() === 'true';
   const carriersCsv = process.env.PAYMENTS_CARRIERS || 'Turkcell,Vodafone,Turk Telekom';
   const carriers = carriersCsv.split(',').map(c => c.trim()).filter(Boolean);
@@ -66,7 +67,7 @@ const paymentSpeedLimiter = slowDown({
   delayMs: 250,
 });
 
-router.post('/subscribe', protect, paymentLimiter, paymentSpeedLimiter, validatePayment, async (req, res) => {
+router.post('/subscribe', protect, rateLimitRedis({ bucket: 'payments_subscribe', windowSec: 60, max: 3, useUserId: true }), paymentLimiter, paymentSpeedLimiter, validatePayment, async (req, res) => {
   try {
     const userId = req.user.id;
     const { planId, paymentMethod, paymentData = {} } = req.body;
@@ -178,7 +179,7 @@ router.post('/subscribe', protect, paymentLimiter, paymentSpeedLimiter, validate
 const verifyLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 30 });
 const verifySpeedLimiter = slowDown({ windowMs: 5 * 60 * 1000, delayAfter: 10, delayMs: 100 });
 
-router.post('/verify', protect, verifyLimiter, verifySpeedLimiter, async (req, res) => {
+router.post('/verify', protect, rateLimitRedis({ bucket: 'payments_verify', windowSec: 60, max: 10, useUserId: true }), verifyLimiter, verifySpeedLimiter, async (req, res) => {
   try {
     const userId = req.user.id;
     const { paymentId, paymentMethod } = req.body;
@@ -504,7 +505,7 @@ router.get('/subscription', protect, async (req, res) => {
 // @access  Public (but secured with signature verification)
 // Stripe/Iyzico webhooks require raw body for signature verification.
 // Bu rota özelinde JSON yerine raw body kullanımı, index.js tarafında tanımlı global parsers'tan önce bağlanmalıdır.
-router.post('/webhook/:provider', express.raw({ type: '*/*' }), async (req, res) => {
+router.post('/webhook/:provider', rateLimitRedis({ bucket: 'payments_webhook', windowSec: 60, max: 60 }), express.raw({ type: '*/*' }), async (req, res) => {
   try {
     const provider = req.params.provider;
     const rawBody = req.body; // Buffer

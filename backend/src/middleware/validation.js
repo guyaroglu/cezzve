@@ -1,4 +1,5 @@
 const { body, query, param, validationResult } = require('express-validator');
+const { z } = require('zod');
 
 // Validation error handler
 const handleValidationErrors = (req, res, next) => {
@@ -227,5 +228,19 @@ module.exports = {
   validateFeedback,
   validateCommunityPost,
   validatePagination,
-  validateObjectId
+  validateObjectId,
+  zodValidate: (schema) => (req, res, next) => {
+    const result = schema.safeParse({ body: req.body, query: req.query, params: req.params });
+    if (!result.success) {
+      return res.status(422).json({
+        error: {
+          code: 'validation_error',
+          message: 'Request validation failed',
+          details: result.error.issues,
+          requestId: req && req.requestId,
+        }
+      });
+    }
+    return next();
+  }
 };
