@@ -5,13 +5,17 @@ const crypto = require('crypto');
 const configPayload = () => ({
   features: {
     dcbFirst: (process.env.PAYMENTS_DCB_ENABLED || 'false').toLowerCase() === 'true',
+    showTarot: (process.env.FEATURE_SHOW_TAROT || 'true').toLowerCase() === 'true',
   },
   payments: {
     carriers: (process.env.PAYMENTS_CARRIERS || '').split(',').map(s=>s.trim()).filter(Boolean),
   },
   limits: {
     aiDaily: parseInt(process.env.AI_DAILY_LIMIT || '20'),
-  }
+  },
+  rewards: {
+    inviteBonusAmount: parseInt(process.env.INVITE_BONUS_AMOUNT || '10'),
+  },
 });
 
 router.get('/', (req, res) => {

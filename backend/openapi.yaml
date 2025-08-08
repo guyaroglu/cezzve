@@ -71,5 +71,25 @@ paths:
                     type: boolean
                   data:
                     type: object
+                    properties:
+                      features:
+                        type: object
+                        properties:
+                          dcbFirst: { type: boolean }
+                          showTarot: { type: boolean }
+                      payments:
+                        type: object
+                        properties:
+                          carriers:
+                            type: array
+                            items: { type: string }
+                      limits:
+                        type: object
+                        properties:
+                          aiDaily: { type: integer }
+                      rewards:
+                        type: object
+                        properties:
+                          inviteBonusAmount: { type: integer }
         '304':
           description: Not Modified

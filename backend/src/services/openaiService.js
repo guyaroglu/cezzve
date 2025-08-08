@@ -50,8 +50,8 @@ class OpenAIService {
         type: type
       };
 
-      // Cache for 24 hours
-      await cache.set(cacheKey, response, 86400);
+      // Cache for 5 minutes for general; daily horoscope remains longer (handled by caller)
+      await cache.set(cacheKey, response, 300);
       
       logger.info(`OpenAI fortune generated: ${type}`);
       return response;
