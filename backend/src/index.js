@@ -23,6 +23,7 @@ const fortuneRoutes = require('./routes/fortunes');
 const paymentRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admin');
 const configRoutes = require('./routes/config');
+const { register, metricsMiddleware, counters } = require('./metrics');
 
 const app = express();
 // Validate environment
@@ -74,6 +75,7 @@ const limiter = rateLimit({
       logger.warn({ hashedIp }, 'Rate limit exceeded');
     }
     res.setHeader('Retry-After', Math.ceil((options.windowMs || 0) / 1000));
+    try { require('./metrics').counters.httpTooManyRequests.inc(); } catch(_) {}
     res.status(options.statusCode || 429).json({
       error: {
         code: 'TOO_MANY_REQUESTS',
@@ -105,7 +107,8 @@ app.use(cors({
 // Compression
 app.use(compression());
 
-// Inject request-id and structured logging
+// Metrics + request-id and structured logging
+app.use(metricsMiddleware);
 app.use((req, res, next) => {
   const childLogger = logger.withRequest(req);
   req.log = childLogger;
@@ -158,6 +161,16 @@ app.use('/api/fortunes', fortuneRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/config', configRoutes);
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (ex) {
+    res.status(500).end(ex.message);
+  }
+});
 
 // Catch-all for undefined routes
 app.use(notFound);

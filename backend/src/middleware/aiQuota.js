@@ -43,6 +43,7 @@ async function consumeAiQuota(req) {
     if (count === 1) {
       await client.expire(req.__aiQuotaKey, secondsUntilEndOfDay());
     }
+    try { require('../metrics').counters.aiQuotaUsed.inc(); } catch(_) {}
   } catch (_) {}
 }
 

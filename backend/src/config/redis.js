@@ -97,9 +97,11 @@ const cache = {
       const client = getRedisClient();
       const value = await client.get(key);
       if (value) {
+        try { require('../metrics').counters.redisCacheHits.inc(); } catch(_) {}
         logger.debug(`Cache hit: ${key}`);
         return JSON.parse(value);
       }
+      try { require('../metrics').counters.redisCacheMisses.inc(); } catch(_) {}
       logger.debug(`Cache miss: ${key}`);
       return null;
     } catch (error) {
