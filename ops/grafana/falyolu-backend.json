@@ -1,0 +1,10 @@
+{
+  "title": "FalYolu Backend",
+  "panels": [
+    {"type":"histogram","title":"HTTP Latency","targets":[{"expr":"histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))"}]},
+    {"type":"stat","title":"HTTP 429 Total","targets":[{"expr":"sum(increase(http_429_total[5m]))"}]},
+    {"type":"stat","title":"Redis Cache Hits","targets":[{"expr":"sum(increase(redis_cache_hits_total[5m]))"}]},
+    {"type":"stat","title":"Redis Cache Misses","targets":[{"expr":"sum(increase(redis_cache_misses_total[5m]))"}]},
+    {"type":"stat","title":"AI Quota Used","targets":[{"expr":"sum(increase(ai_quota_used_total[5m]))"}]}
+  ]
+}

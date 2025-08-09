@@ -21,6 +21,24 @@ export let options = {
       iterations: 5,
       exec: 'webhookScenario',
     },
+    purchase_success_scn: {
+      executor: 'constant-vus',
+      vus: 5,
+      duration: '30s',
+      exec: 'purchaseSuccessScenario',
+    },
+    purchase_fail_scn: {
+      executor: 'constant-vus',
+      vus: 3,
+      duration: '30s',
+      exec: 'purchaseFailScenario',
+    },
+    availability_cache_hit_scn: {
+      executor: 'per-vu-iterations',
+      vus: 5,
+      iterations: 3,
+      exec: 'availabilityCacheHitScenario',
+    },
   },
   thresholds: {
     http_req_duration: ['p(95)<500','p(99)<800'],
@@ -61,6 +79,37 @@ export function webhookScenario() {
   const iyzico = http.post(`${BASE_URL}/api/payments/webhook/iyzico`, '{}', { headers: { 'Content-Type': 'application/json', 'x-iyzi-signature': 'invalid' }});
   check(stripe, { 'stripe 401/400': (r) => [400,401].includes(r.status) });
   check(iyzico, { 'iyzico 401/400': (r) => [400,401].includes(r.status) });
+  sleep(1);
+}
+
+export function purchaseSuccessScenario() {
+  const idem = `ok-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  const res = http.post(`${BASE_URL}/api/payments/subscribe`, JSON.stringify({ planId: 'monthly', paymentMethod: 'paypal', paymentData: {} }), {
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idem }
+  });
+  check(res, { 'purchase success status': (r) => [200,201,409].includes(r.status) });
+  sleep(1);
+}
+
+export function purchaseFailScenario() {
+  // Intentionally use stripe without proper setup to simulate failure
+  const idem = `fail-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  const res = http.post(`${BASE_URL}/api/payments/subscribe`, JSON.stringify({ planId: 'monthly', paymentMethod: 'stripe', paymentData: {} }), {
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idem }
+  });
+  check(res, { 'purchase fail (non-2xx)': (r) => r.status >= 400 });
+  sleep(1);
+}
+
+export function availabilityCacheHitScenario() {
+  // First call warms cache
+  const r1 = http.get(`${BASE_URL}/api/payments/availability`);
+  check(r1, { 'availability 200': (r) => r.status === 200 });
+  // Subsequent calls should be faster (cache hit). Target < 50ms
+  const r2 = http.get(`${BASE_URL}/api/payments/availability`);
+  const r3 = http.get(`${BASE_URL}/api/payments/availability`);
+  check(r2, { 'availability cache-hit fast': (r) => r.timings.duration < 50 });
+  check(r3, { 'availability cache-hit fast 2': (r) => r.timings.duration < 50 });
   sleep(1);
 }
 

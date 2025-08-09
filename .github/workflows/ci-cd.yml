@@ -214,6 +214,9 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -255,7 +258,12 @@ jobs:
       - name: Run performance scenarios
         run: |
           cd backend
-          k6 run -e BASE_URL=${{ env.PERF_BASE_URL || 'http://localhost:3000' }} tests/performance/scenarios.js
+          k6 run -e BASE_URL=${{ env.PERF_BASE_URL || 'http://localhost:3000' }} tests/performance/scenarios.js --vus 20 --duration 60s --summary-export k6-summary.json
+
+      - name: PR comment (k6)
+        if: github.event_name == 'pull_request'
+        run: |
+          node -e "const fs=require('fs');const p='backend/k6-summary.json';if(fs.existsSync(p)){const j=JSON.parse(fs.readFileSync(p,'utf8'));const s=j.metrics;const p95=s.http_req_duration['p(95)'];const p99=s.http_req_duration['p(99)'];const err=s.http_req_failed.rate;console.log(`k6 summary: p95=${p95}ms p99=${p99}ms error_rate=${(err*100).toFixed(2)}%`);}"
 
   # PR smoke performance test
   performance-smoke:
